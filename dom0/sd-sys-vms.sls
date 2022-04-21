@@ -72,12 +72,32 @@ set-fedora-default-template-version:
       - sls: qvm.default-dispvm
 
 
+{% if salt['pillar.get']('qvm:sys-usb:disposable', true) %}
+clone-dispvm-for-sys-usb-customization:
+  cmd.run:
+    - name: >
+        qvm-check sd-{{ sd_supported_fedora_version }}-dvm || qvm-clone {{ sd_supported_fedora_version }}-dvm sd-{{ sd_supported_fedora_version }}-dvm
+    - require:
+{% if grains['osrelease'] == '4.1' %}
+      - cmd: dom0-install-fedora-template
+{% else %}
+      - pkg: dom0-install-fedora-template
+{% endif %}
+{% endif %}
+
+
 # Now proceed with rebooting all the sys-* VMs, since the new template is up to date.
 
 {% for sys_vm in ['sys-usb', 'sys-net', 'sys-firewall'] %}
 {% if grains['osrelease'] == '4.1' and salt['pillar.get']('qvm:'+sys_vm+':disposable', false) %}
 # As of Qubes 4.1, certain sys-* VMs will be DispVMs by default.
+# If sys-usb is disposable, we want it to use the template we just cloned so we can
+# customize it for auto-attaching flash drives to sd-devices
+{% if sys_vm == 'sys-usb' %}
+{% set sd_supported_fedora_template = 'sd-'+sd_supported_fedora_version+'-dvm' %}
+{% else %}
 {% set sd_supported_fedora_template = sd_supported_fedora_version+'-dvm' %}
+{% endif %}
 {% else %}
 {% set sd_supported_fedora_template = sd_supported_fedora_version %}
 {% endif %}
