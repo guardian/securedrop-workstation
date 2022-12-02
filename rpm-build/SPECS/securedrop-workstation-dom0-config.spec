@@ -119,6 +119,7 @@ find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +
 /usr/share/%{srcname}/config.json.example
 /opt/securedrop/launcher/**/*.py
 /srv/salt/sd*
+/srv/salt/guardian-securedrop-repo.sls
 /srv/salt/dom0-xfce-desktop-file.j2
 /srv/salt/remove-tags
 /srv/salt/securedrop-*

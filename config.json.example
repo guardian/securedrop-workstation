@@ -8,5 +8,6 @@
   "vmsizes": {
      "sd_app": 10,
      "sd_log": 5
-  }
+  },
+  "guardian_securedrop_apt_bucket": "bucket-name"
 }
