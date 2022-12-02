@@ -9,14 +9,16 @@
 #
 ##
 include:
-  - fpf-apt-repo
   - sd-logging-setup
+  - guardian-securedrop-repo
 
 # FPF repo is setup in "securedrop-workstation-$sdvars.distribution" template,
 # and then cloned as "sd-small-$sdvars.distribution-template"
+# Note guardian fork used instead of fpf version because the version number is higher - both repos publish a package
+# called 'securedrop-client'
 install-securedrop-client-package:
   pkg.installed:
     - pkgs:
       - securedrop-client
     - require:
-      - sls: fpf-apt-repo
+      - sls: guardian-securedrop-repo
