@@ -63,18 +63,11 @@ def parse_args():
 def copy_config():
     """
     Copies config.json and sd-journalist.sec to /srv/salt/sd
-    Guardian build: also copies s3auth.conf and guardian-securedrop-release.asc to /srv/salt/sd
     """
     try:
         subprocess.check_call(["sudo", "cp", os.path.join(SCRIPTS_PATH, "config.json"), SALT_PATH])
         subprocess.check_call(
             ["sudo", "cp", os.path.join(SCRIPTS_PATH, "sd-journalist.sec"), SALT_PATH]
-        )
-        subprocess.check_call(
-            ["sudo", "cp", os.path.join(SCRIPTS_PATH, "s3auth.conf"), SALT_PATH]
-        )
-        subprocess.check_call(
-            ["sudo", "cp", os.path.join(SCRIPTS_PATH, "guardian-securedrop-release.asc"), SALT_PATH]
         )
     except subprocess.CalledProcessError:
         raise SDWAdminException("Error copying configuration")

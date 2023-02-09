@@ -109,6 +109,7 @@ install -m 644 files/config.json.example %{buildroot}/%{_datadir}/%{name}/
 /opt/securedrop/launcher/**/*.py
 /srv/salt/sd*
 /srv/salt/guardian-securedrop-repo.sls
+/srv/salt/s3auth.conf.j2
 /srv/salt/dom0-xfce-desktop-file.j2
 /srv/salt/remove-tags
 /srv/salt/securedrop-*
