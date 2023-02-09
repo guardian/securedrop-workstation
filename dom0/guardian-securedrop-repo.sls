@@ -9,13 +9,18 @@ install-apt-transport:
 /etc/apt/s3auth.conf:
   file.managed:
     - name: /etc/apt/s3auth.conf
-    - source: salt://sd/s3auth.conf
+    - source: "salt://s3auth.conf.j2"
+    - template: jinja
+    - context:
+        access_key_id: {{ d.guardian.aws.access_key_id }}
+        secret_access_key: {{ d.guardian.aws.secret_access_key }}
+        region: {{ d.guardian.aws.region }}
     - user: root
     - group: root
 
 add guardian securedrop repo:
   pkgrepo.managed:
-    - name: "deb s3://{{ d.guardian_securedrop_apt_bucket }}/ bullseye main"
-    - key_url: salt://sd/guardian-securedrop-release.asc
+    - name: "deb s3://{{ d.guardian.apt_repo_bucket }}/ bullseye main"
+    - key_url: "salt://sd/sd-workstation/{{ d.guardian.signing_key_filename }}"
     - humanname: Guardian securedrop PPA
 

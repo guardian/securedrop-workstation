@@ -9,5 +9,13 @@
      "sd_app": 10,
      "sd_log": 5
   },
-  "guardian_securedrop_apt_bucket": "bucket-name"
+  "guardian": {
+    "apt_repo_bucket": "bucket-name",
+    "signing_key_filename": "filename.asc",
+    "aws": {
+        "access_key_id": "ACCESSKEY",
+        "secret_access_key": "mysecretkey",
+        "region": "us-east-1"
+    }
+  }
 }
