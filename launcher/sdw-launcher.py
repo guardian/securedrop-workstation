@@ -4,11 +4,11 @@ from sdw_util import Util
 from sdw_updater_gui import Updater
 from sdw_updater_gui.UpdaterApp import launch_securedrop_client
 from sdw_updater_gui.Updater import should_launch_updater
+from whistleflow_launcher import launch_whistleflow
 import sys
 import argparse
 
 from PyQt5.QtWidgets import QApplication
-
 
 DEFAULT_INTERVAL = 28800  # 8hr default for update interval
 
@@ -58,6 +58,9 @@ def main(argv):
         launch_updater(args.skip_netcheck)
     else:
         launch_securedrop_client()
+
+        # Launch guardian whistleflow services
+        launch_whistleflow()
 
 
 if __name__ == "__main__":
