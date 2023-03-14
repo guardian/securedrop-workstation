@@ -111,6 +111,7 @@ find %{buildroot} -exec touch -m -d @%{_source_date_epoch} {} +
 
 %files
 %attr(755, root, root) /opt/securedrop/launcher/sdw-launcher.py
+%attr(755, root, root) /opt/securedrop/launcher/whistleflow_launcher.py
 %attr(755, root, root) /opt/securedrop/launcher/sdw-notify.py
 %attr(755, root, root) %{_bindir}/sdw-admin
 %{_datadir}/%{name}
