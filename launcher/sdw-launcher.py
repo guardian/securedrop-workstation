@@ -54,13 +54,13 @@ def main(argv):
 
     interval = int(args.skip_delta)
 
+    # Launch guardian whistleflow services
+    launch_whistleflow()
+
     if should_launch_updater(interval):
         launch_updater(args.skip_netcheck)
     else:
         launch_securedrop_client()
-
-        # Launch guardian whistleflow services
-        launch_whistleflow()
 
 
 if __name__ == "__main__":
