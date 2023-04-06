@@ -8,5 +8,14 @@
   "vmsizes": {
      "sd_app": 10,
      "sd_log": 5
+  },
+  "guardian": {
+    "apt_repo_bucket": "bucket-name",
+    "signing_key_filename": "filename.asc",
+    "aws": {
+        "access_key_id": "ACCESSKEY",
+        "secret_access_key": "mysecretkey",
+        "region": "us-east-1"
+    }
   }
 }

@@ -9,7 +9,6 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication
 
-
 DEFAULT_INTERVAL = 28800  # 8hr default for update interval
 
 
@@ -53,6 +52,7 @@ def main(argv):
         args.skip_delta = DEFAULT_INTERVAL
 
     interval = int(args.skip_delta)
+
 
     if should_launch_updater(interval):
         launch_updater(args.skip_netcheck)
