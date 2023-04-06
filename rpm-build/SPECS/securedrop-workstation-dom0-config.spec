@@ -97,7 +97,6 @@ install -m 644 files/config.json.example %{buildroot}/%{_datadir}/%{name}/
 
 %files
 %attr(755, root, root) /opt/securedrop/launcher/sdw-launcher.py
-%attr(755, root, root) /opt/securedrop/launcher/whistleflow_launcher.py
 %attr(755, root, root) /opt/securedrop/launcher/sdw-notify.py
 %attr(755, root, root) %{_datadir}/%{name}/scripts/clean-salt
 %attr(755, root, root) %{_datadir}/%{name}/scripts/destroy-vm

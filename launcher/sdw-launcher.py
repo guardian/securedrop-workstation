@@ -4,7 +4,6 @@ from sdw_util import Util
 from sdw_updater_gui import Updater
 from sdw_updater_gui.UpdaterApp import launch_securedrop_client
 from sdw_updater_gui.Updater import should_launch_updater
-from whistleflow_launcher import launch_whistleflow
 import sys
 import argparse
 
@@ -54,8 +53,6 @@ def main(argv):
 
     interval = int(args.skip_delta)
 
-    # Launch guardian whistleflow services
-    launch_whistleflow()
 
     if should_launch_updater(interval):
         launch_updater(args.skip_netcheck)
