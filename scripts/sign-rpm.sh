@@ -6,7 +6,7 @@ set -e
 
 STAGE=${1}
 
-KEYRING="gu-securedrop-temporary.gpg" # this must correspond to value set in /home/admin/.rpmmacros
+KEYRING="gu-securedrop-temporary.gpg" # this must correspond to value set in ~/.rpmmacros
 
 gpg --no-default-keyring --keyring $KEYRING  --pinentry loopback --import /tmp/private.asc
 
