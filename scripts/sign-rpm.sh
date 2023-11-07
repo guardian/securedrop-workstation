@@ -18,7 +18,7 @@ cat > /root/.rpmmacros << EOF
 EOF
 
 # Locate rpm file
-LATEST_RPM_PATH=$(find /src/rpm-build/ -type f -iname '*.rpm' -print0 | sort -zV | head -n 1 )
+LATEST_RPM_PATH=$(find /src/rpm-build/ -type f -iname '*.rpm' | sort -V | tail -n 1)
 
 #Sign RPM
 rpm --addsign "$LATEST_RPM_PATH"
