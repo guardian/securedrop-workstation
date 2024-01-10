@@ -31,10 +31,10 @@ aws secretsmanager get-secret-value --region eu-west-1 --secret-id "$SIGNING_KEY
 
 # Sign RPM
 echo "Signing RPM..."
-$DOCKER_BASE_COMMAND -it $DOCKER_RUN_COMMAND /src/scripts/sign-rpm.sh $STAGE
+$DOCKER_BASE_COMMAND -it $DOCKER_RUN_COMMAND "/src/scripts/sign-rpm.sh $STAGE"
 
 echo "Uploading signed RPM..."
-LATEST_RPM_PATH=$(find /$SCRIPT_PATH/../rpm-build/ -type f -iname '*.rpm' -print0 | sort -zV | head -n 1 )
+LATEST_RPM_PATH=$(find /$SCRIPT_PATH/../rpm-build/ -type f -iname '*.rpm' | sort -V | tail -n 1 )
 LATEST_RPM_FILENAME="$(basename "$LATEST_RPM_PATH")"
 
 # Upload
@@ -42,4 +42,4 @@ RELEASE_BUCKET=$(aws ssm get-parameter --name /$STAGE/investigations/securedrop-
 aws s3 cp "$LATEST_RPM_PATH" s3://$RELEASE_BUCKET/$LATEST_RPM_FILENAME
 
 # Tidy up temp files
-rm /tmp/private.asc
+rm /tmp/sdw/private.asc

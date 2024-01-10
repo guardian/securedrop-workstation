@@ -1,5 +1,6 @@
 Name:		securedrop-workstation-dom0-config
 Version:	0.9.0
+
 Release:	1%{?dist}
 Summary:	SecureDrop Workstation
 
@@ -25,6 +26,7 @@ License:	AGPLv3
 URL:		https://github.com/freedomofpress/securedrop-workstation
 # See: https://docs.fedoraproject.org/en-US/packaging-guidelines/SourceURL/#_troublesome_urls
 Source:		%{url}/archive/refs/tags/%{version}.tar.gz#/%{name}-%{version}.tar.gz
+
 
 BuildArch:		noarch
 BuildRequires:	python3-devel
@@ -124,6 +126,8 @@ find /srv/salt -maxdepth 1 -type f -iname '*.top' \
     | xargs -n1 basename \
     | sed -e 's/\.top$$//g' \
     | xargs qubesctl top.enable > /dev/null
+mkdir -p /tmp/sdw-migrations
+touch /tmp/sdw-migrations/f37-update
 
 # Force full run of all Salt states - uncomment in release branch
 mkdir -p /tmp/sdw-migrations
