@@ -9,14 +9,14 @@ include:
   # DispVM is created
   - qvm.default-dispvm
 
-{% set sd_supported_fedora_version = 'fedora-37' %}
+{% set sd_supported_fedora_version = 'fedora-38' %}
 
 
 # Install latest templates required for SDW VMs.
 dom0-install-fedora-template:
   cmd.run:
     - name: >
-        qvm-template install {{ sd_supported_fedora_version }}
+        qvm-template info --machine-readable {{ sd_supported_fedora_version }} | grep -q "installed|{{ sd_supported_fedora_version }}|" || qvm-template install {{ sd_supported_fedora_version }}
 
 # Update the mgmt VM before updating the new Fedora VM. The order is required
 # and listed in the release notes for F32 & F33.
@@ -125,6 +125,15 @@ remove-sd-fedora-dvm:
     - name: sd-fedora-dvm
     - require:
       - qvm: sd-sys-usb-fedora-version-update
+
+# Finally, remove the old supported fedora DVM we created. We won't uninstall
+# the template, in case it's being used elsewhere, but the `sd-` VMs we can
+# reasonably manage (remove) ourselves.
+remove-sd-fedora-37-dvm:
+  qvm.absent:
+    - name: sd-fedora-37-dvm
+    - require:
+      - qvm: sd-sys-usb-fedora-version-update
 {% endif %}
 
 sd-{{ sys_vm }}-fedora-version-start:
@@ -134,3 +143,4 @@ sd-{{ sys_vm }}-fedora-version-start:
       - qvm: sd-{{ sys_vm }}-fedora-version-update
 {% endif %}
 {% endfor %}
+

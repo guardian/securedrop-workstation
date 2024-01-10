@@ -75,7 +75,7 @@ Qubes uses SaltStack internally for VM provisionining and configuration manageme
 - The [SecureDrop Client](https://github.com/freedomofpress/securedrop-client) is installed in `sd-app` and will be used to access the SecureDrop server *Journalist Interface* via the SecureDrop proxy.
 - The [SecureDrop Proxy](https://github.com/freedomofpress/securedrop-proxy) is installed in `sd-proxy` to communicate to the SecureDrop server *Journalist Interface* via `sd-whonix`.
 - Within `sd-app`, the *SecureDrop Client* will open all submissions in the `sd-viewer` disposable VM.
-- `config.json.example` is an example config file for the provisioning process. Before use, you should copy it to `config.json`, and adjust to reflect your environment.
+- `files/config.json.example` is an example config file for the provisioning process. Before use, you should copy it to `config.json` (in the repository's root directory), and adjust to reflect your environment.
 - `sd-journalist.sec.example` is an example GPG private key for use in decrypting submissions. It must match the public key set on a SecureDrop server used for testing. Before use, you should copy it to `sd-journalist.sec`, or store the submission key used with your SecureDrop server as `sd-journalist.sec`.
 - `launcher/` contains the pre-flight updater component (`sdw-launcher`), which updates all TemplateVMs relevant to the SecureDrop Workstation prior to use, as well as the `sdw-notify` script, which reminds the user to update the system if they have not done so recently.
 
@@ -83,17 +83,18 @@ Qubes uses SaltStack internally for VM provisionining and configuration manageme
 
 Installing this project is involved. It requires an up-to-date Qubes 4.1 installation running on a machine with at least 16GB of RAM (32 GB recommended).
 
-The project is currently in a closed beta, and we do not recommend installing it for production purposes. If you are participating in our beta program, please consult our *[end user documentation](https://workstation.securedrop.org)* for detailed setup instructions, and do not hesitate to reach out for assistance.
+**The project is currently in a closed beta, and we do not recommend installing it for production purposes independently. See our [blog post](https://securedrop.org/news/piloting-securedrop-workstation-qubes-os/) for more information. If you are participating in our beta program, please consult our *[end user documentation](https://workstation.securedrop.org)* for detailed setup instructions, and do not hesitate to reach out for assistance.**
 
 To install a development version (using test data on the server and a test encryption key to decrypt it), in summary, you will need to:
 
 1. Ensure you have an up-to-date SecureDrop server or staging environment
 2. Apply all available system updates in Qubes OS
 3. Clone this repository into a development VM
-4. Create a `config.json` and `sd-journalist.sec` (Submission Private Key) appropriate for your environment
-4. Copy the contents from your development VM into `~/securedrop-workstation` in `dom0`
-5. In `dom0`, export `SECUREDROP_DEV_VM` (name of your dev VM) and `SECUREDROP_DEV_DIR` (full path to repo checkout in dev VM) and run `make clone`
-5. Run `make dev` in `dom0` to provision a development environment.
+4. In the development VM, install Podman, Docker or another OCI compatible container engine (the build environment depends on it)
+5. Create a `config.json` and `sd-journalist.sec` (Submission Private Key) appropriate for your environment
+6. Copy the contents from your development VM into `~/securedrop-workstation` in `dom0`
+7. In `dom0`, export `SECUREDROP_DEV_VM` (name of your dev VM) and `SECUREDROP_DEV_DIR` (full path to repo checkout in dev VM) and run `make clone`
+8. Run `make dev` in `dom0` to provision a development environment.
 
 This is only a summary; see our *[developer documentation](http://developers.securedrop.org/en/latest/workstation_setup.html)* for detailed instructions.
 
