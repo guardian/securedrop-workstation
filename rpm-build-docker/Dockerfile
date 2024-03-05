@@ -1,14 +1,14 @@
-FROM debian:bullseye-slim
+FROM fedora:38
 WORKDIR /usr/src/sdw
 
 #npm has some prompts on installation. let's suppres them
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies
-RUN apt-get update
-RUN apt-get install -y git gpg
-RUN apt-get --yes install binutils
-RUN apt-get install --no-install-recommends -y \
-            		python3 python3-venv python3-setuptools file python3-rpm \
-            		rpm rpm-common diffoscope reprotest disorderfs faketime xvfb
-
+RUN dnf -y update
+RUN dnf install -y git gpg
+RUN dnf install -y \
+    python3 python3-setuptools python3-rpm \
+    rpm diffoscope reprotest faketime  \
+    python3-pip python3-wheel python3-devel rpm-sign
+RUN python3 --version
