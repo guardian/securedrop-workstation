@@ -23,7 +23,7 @@ DOCKER_RUN_COMMAND="sdwbuild /bin/sh -c "
 docker build -t sdwbuild $SCRIPT_PATH/../rpm-build-docker
 
 # Generate RPM
-$DOCKER_BASE_COMMAND $DOCKER_RUN_COMMAND 'cd /src; scripts/build-dom0-rpm'
+$DOCKER_BASE_COMMAND $DOCKER_RUN_COMMAND 'cd /src; scripts/build-rpm.sh'
 
 # Fetch key from secrets manager
 SIGNING_KEY_SECRET_ID=$(aws ssm get-parameter --name /$STAGE/investigations/securedrop-workstation/signingKeySecretId | jq -r .Parameter.Value)
