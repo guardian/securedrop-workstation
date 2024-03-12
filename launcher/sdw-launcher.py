@@ -53,7 +53,6 @@ def main(argv):
 
     interval = int(args.skip_delta)
 
-
     if should_launch_updater(interval):
         launch_updater(args.skip_netcheck)
     else:
