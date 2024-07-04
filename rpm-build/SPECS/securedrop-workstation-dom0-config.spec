@@ -124,18 +124,6 @@ install -m 644 files/securedrop-user-xfce-icon-size.service %{buildroot}/%{_user
 %{python3_sitelib}/sdw_util/*.py
 # The name of the dist-info dir uses _ instead of -, so we use wildcards
 %{python3_sitelib}/*%{version}.dist-info/*
-<<<<<<< HEAD
-%{_datadir}/%{name}/config.json.example
-/opt/securedrop/launcher/**/*.py
-/srv/salt/sd*
-/srv/salt/guardian-securedrop-repo.sls
-/srv/salt/s3auth.conf.j2
-/srv/salt/dom0-xfce-desktop-file.j2
-/srv/salt/remove-tags
-/srv/salt/securedrop-*
-/srv/salt/update-xfce-settings
-/srv/salt/fpf*
-=======
 %{_datadir}/icons/hicolor/128x128/apps/securedrop.png
 %{_datadir}/icons/hicolor/scalable/apps/securedrop.svg
 %{_userunitdir}/sdw-notify.service
@@ -155,7 +143,6 @@ install -m 644 files/securedrop-user-xfce-icon-size.service %{buildroot}/%{_user
 
 %attr(755, root, root) /usr/bin/securedrop/update-xfce-settings
 
->>>>>>> 1.0.0-rc2
 %doc README.md
 %license LICENSE
 
