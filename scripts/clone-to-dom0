@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Utility to copy workstation config files from target AppVM
 # to dom0, for use in testing the salt logic for VM configuration.
 # Should only be run in dom0!
@@ -25,7 +25,7 @@ dom0_dev_dir="$HOME/securedrop-workstation"
 # in the subsequent tarball, which is fetched to dom0.
 function build-dom0-rpm() {
     printf "Building RPM on %s ...\n" "${dev_vm}"
-    qvm-run -q "$dev_vm" "make -C $dev_dir build-rpm"
+    qvm-run --pass-io "$dev_vm" "make -C $dev_dir build-rpm"
 }
 
 # Call out to target AppVM to create a tarball in dom0
@@ -38,7 +38,7 @@ function create-tarball() {
 }
 
 function unpack-tarball() {
-    rm -rf "${dom0_dev_dir}/"*
+    rm -rf "${dom0_dev_dir:?}/"*
     tar xf /tmp/sd-proj.tar -C "${dom0_dev_dir}" --strip-components=1
 }
 

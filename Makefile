@@ -1,9 +1,9 @@
 DEFAULT_GOAL: help
-# We prefer to use python3.8 if it's availabe, as that is the version shipped
-# with Fedora 32, but we're also OK with just python3 if that's all we've got
-PYTHON3 := $(if $(shell bash -c "command -v python3.8"), python3.8, python3)
-# If we're on anything but Fedora 32, execute some commands in a container
-CONTAINER := $(if $(shell grep "Thirty Two" /etc/fedora-release),,./scripts/container.sh)
+PYTHON3 := $(if $(shell bash -c "command -v python3.11"), python3.11, python3)
+# If we're on anything but Fedora 37, execute some commands in a container
+# Note: if your development environment is Fedora 37 based, you may want to
+# manually prepend ./scripts/container.sh to commands you want to execute
+CONTAINER := $(if $(shell grep "Thirty Seven" /etc/fedora-release),,./scripts/container.sh)
 
 HOST=$(shell hostname)
 
@@ -23,7 +23,7 @@ all: assert-dom0
 	@false
 
 dev staging: assert-dom0 ## Configures and builds a dev or staging environment
-	./scripts/configure-environment --env $@
+	./scripts/configure-environment.py --env $@
 	$(MAKE) validate
 	$(MAKE) prep-dev
 	sdw-admin --apply
@@ -32,18 +32,26 @@ dev staging: assert-dom0 ## Configures and builds a dev or staging environment
 build-rpm: ## Build RPM package
 	USE_BUILD_CONTAINER=true $(CONTAINER) ./scripts/build-rpm.sh
 
+# FIXME: the time variations have been temporarily removed from reprotest
+# Suspecting upstream issues in rpm land is causing issues with 1 file\'s modification time not being clamped correctly only in a reprotest environment
 .PHONY: reprotest
 reprotest: ## Check RPM package reproducibility
-	TERM=xterm-256color $(CONTAINER) bash -c "sudo ln -s $$PWD/scripts/fake-setarch.py /usr/local/bin/setarch && sudo reprotest 'make build-rpm' 'rpm-build/RPMS/noarch/*.rpm' --variations '+all,+kernel,-fileordering,-domain_host'"
+	TERM=xterm-256color $(CONTAINER) bash -c "sudo ln -s $$PWD/scripts/fake-setarch.py /usr/local/bin/setarch && sudo reprotest 'make build-rpm' 'rpm-build/RPMS/noarch/*.rpm' --variations '+all,+kernel,-time,-fileordering,-domain_host'"
 
-# Installs Fedora 32 package dependencies, to build RPMs and run tests,
-# primarily useful in CI/containers
-.PHONY: install-deps
-install-deps:
-	sudo dnf install -y \
-        git file python3-devel python3-pip python3-qt5 python3-wheel \
-		xorg-x11-server-Xvfb rpmdevtools rpmlint which libfaketime ShellCheck \
+
+.PHONY: build-deps
+build-deps: ## Install package dependencies to build RPMs
+# Note: build dependencies are specified in the spec file, not here
+	dnf install -y \
+		git file rpmdevtools dnf-plugins-core
+	dnf builddep -y rpm-build/SPECS/securedrop-workstation-dom0-config.spec
+
+.PHONY: test-deps
+test-deps: build-deps ## Install package dependencies for running tests
+	dnf install -y \
+		python3-qt5 xorg-x11-server-Xvfb rpmlint which libfaketime ShellCheck \
 		hostname
+	dnf --setopt=install_weak_deps=False -y install reprotest
 
 clone: assert-dom0 ## Builds rpm && pulls the latest repo from work VM to dom0
 	@./scripts/clone-to-dom0
@@ -52,29 +60,29 @@ clone-norpm: assert-dom0 ## As above, but skip creating RPM
 	@BUILD_RPM=false ./scripts/clone-to-dom0
 
 qubes-rpc: prep-dev ## Places default deny qubes-rpc policies for sd-app and sd-gpg
-	sudo qubesctl --show-output --targets sd-dom0-qvm-rpc state.highstate
+	sudo qubesctl --show-output --targets securedrop_salt.sd-dom0-qvm-rpc state.highstate
 
 add-usb-autoattach: prep-dom0 ## Adds udev rules and scripts to sys-usb
 	sudo qubesctl --show-output --skip-dom0 --targets sys-usb state.highstate
 
 remove-usb-autoattach: prep-dev ## Removes udev rules and scripts from sys-usb
-	sudo qubesctl --show-output state.sls sd-usb-autoattach-remove
+	sudo qubesctl --show-output state.sls securedrop_salt.sd-usb-autoattach-remove
 
 sd-workstation-template: prep-dev ## Provisions base template for SDW AppVMs
-	sudo qubesctl --show-output state.sls sd-workstation-bullseye-template
-	sudo qubesctl --show-output --skip-dom0 --targets sd-workstation-bullseye-template state.highstate
+	sudo qubesctl --show-output state.sls securedrop_salt.sd-base-template
+	sudo qubesctl --show-output --skip-dom0 --targets sd-base-bookworm-template state.highstate
 
 sd-proxy: prep-dev ## Provisions SD Proxy VM
 	sudo qubesctl --show-output state.sls sd-proxy
-	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bullseye-template,sd-proxy state.highstate
+	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bookworm-template,sd-proxy-dvm,sd-proxy state.highstate
 
 sd-gpg: prep-dev ## Provisions SD GPG keystore VM
 	sudo qubesctl --show-output state.sls sd-gpg
-	sudo qubesctl --show-output --skip-dom0 --targets sd-workstation-bullseye-template,sd-gpg state.highstate
+	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bookworm-template,sd-gpg state.highstate
 
 sd-app: prep-dev ## Provisions SD APP VM
 	sudo qubesctl --show-output state.sls sd-app
-	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bullseye-template,sd-app state.highstate
+	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bookworm-template,sd-app state.highstate
 
 sd-whonix: prep-dev ## Provisions SD Whonix VM
 	sudo qubesctl --show-output state.sls sd-whonix
@@ -82,46 +90,46 @@ sd-whonix: prep-dev ## Provisions SD Whonix VM
 
 sd-viewer: prep-dev ## Provisions SD Submission Viewing VM
 	sudo qubesctl --show-output state.sls sd-viewer
-	sudo qubesctl --show-output --skip-dom0 --targets sd-viewer-bullseye-template,sd-viewer state.highstate
+	sudo qubesctl --show-output --skip-dom0 --targets sd-large-bookworm-template,sd-viewer state.highstate
 
 sd-devices: prep-dev ## Provisions SD Export VM
 	sudo qubesctl --show-output state.sls sd-devices
-	sudo qubesctl --show-output --skip-dom0 --targets sd-devices-bullseye-template,sd-devices,sd-devices-dvm state.highstate
+	sudo qubesctl --show-output --skip-dom0 --targets sd-large-bookworm-template,sd-devices,sd-devices-dvm state.highstate
 
 sd-log: prep-dev ## Provisions SD logging VM
 	sudo qubesctl --show-output state.sls sd-log
-	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bullseye-template,sd-log state.highstate
+	sudo qubesctl --show-output --skip-dom0 --targets sd-small-bookworm-template,sd-log state.highstate
 
 prep-dev: assert-dom0 ## Configures Salt layout for SD workstation VMs
 	@./scripts/prep-dev
 	@./files/validate_config.py
 
 remove-sd-whonix: assert-dom0 ## Destroys SD Whonix VM
-	@./scripts/destroy-vm sd-whonix
+	@./scripts/destroy-vm.py sd-whonix
 
 remove-sd-viewer: assert-dom0 ## Destroys SD Submission reading VM
-	@./scripts/destroy-vm sd-viewer
+	@./scripts/destroy-vm.py sd-viewer
 
 remove-sd-proxy: assert-dom0 ## Destroys SD Proxy VM
-	@./scripts/destroy-vm sd-proxy
+	@./scripts/destroy-vm.py sd-proxy
 
 remove-sd-app: assert-dom0 ## Destroys SD APP VM
-	@./scripts/destroy-vm sd-app
+	@./scripts/destroy-vm.py sd-app
 
 remove-sd-gpg: assert-dom0 ## Destroys SD GPG keystore VM
-	@./scripts/destroy-vm sd-gpg
+	@./scripts/destroy-vm.py sd-gpg
 
 remove-sd-devices: assert-dom0 ## Destroys SD EXPORT VMs
-	@./scripts/destroy-vm sd-devices
-	@./scripts/destroy-vm sd-devices-dvm
+	@./scripts/destroy-vm.py sd-devices
+	@./scripts/destroy-vm.py sd-devices-dvm
 
 remove-sd-log: assert-dom0 ## Destroys SD logging VM
-	@./scripts/destroy-vm sd-log
+	@./scripts/destroy-vm.py sd-log
 
 clean: assert-dom0 prep-dev ## Destroys all SD VMs
 # Use the local script path, since system PATH location will be absent
 # if clean has already been run.
-	./scripts/sdw-admin.py --uninstall --keep-template-rpm --force
+	./scripts/sdw-admin.py --uninstall --force
 
 test: assert-dom0 ## Runs all application tests (no integration tests yet)
 	python3 -m unittest discover -v tests
@@ -147,35 +155,49 @@ validate: assert-dom0 ## Checks for local requirements in dev env
 # Not requiring dom0 for linting as that requires extra packages, which we're
 # not installing on dom0, so are only in the developer environment, i.e. Work VM
 
-.PHONY: check-black
-check-black: ## Check Python source code formatting with black
-	black --check --diff .
+prep-dom0: prep-dev # Copies dom0 config files
+	sudo qubesctl --show-output --targets dom0 state.highstate
+
+destroy-all: ## Destroys all VMs managed by Workstation salt config
+	./scripts/destroy-vm.py --all
+
+.PHONY: update-pip-requirements
+update-pip-requirements: ## Updates all Python requirements files via pip-compile.
+	pip-compile --allow-unsafe --generate-hashes --output-file=requirements/dev-requirements.txt requirements/dev-requirements.in
+
+.PHONY: venv
+venv: ## Provision a Python 3 virtualenv for development (ensure to also install OS package for PyQt5)
+	$(PYTHON3) -m venv .venv --system-site-packages
+	.venv/bin/pip install --upgrade pip wheel
+	.venv/bin/pip install --require-hashes -r "requirements/dev-requirements.txt"
+	@echo "#################"
+	@echo "Virtualenv with system-packages is complete."
+	@echo "Make sure to either install the OS package for PyQt5 or install PyQt5==5.14.2 into this virtual environment."
+	@echo "Then run: source .venv/bin/activate"
+
+.PHONY: check
+check: lint test ## Runs linters and tests
 
 .PHONY: lint
-lint: flake8 black mypy ## Runs all linters
+lint: check-ruff mypy rpmlint shellcheck ## Runs linters (ruff, mypy, rpmlint, and shellcheck)
 
-.PHONY: black
-black: ## Update Python source code formatting with black
-	black .
+.PHONY: test-launcher
+test-launcher: ## Runs launcher tests
+	xvfb-run poetry run python3 -m pytest --cov-report term-missing --cov=sdw_notify --cov=sdw_updater/ --cov=sdw_util -v launcher/tests/
 
-.PHONY: check-isort
-check-isort: ## Check Python import organization with isort
-	isort --check-only --diff .
+.PHONY: check-ruff
+check-ruff: ## Check Python source code formatting with ruff
+	poetry run ruff format . --diff
+	poetry run ruff check . --output-format=full
 
-.PHONY: isort
-isort: ## Update Python import organization with isort
-	isort --diff .
+.PHONY: fix
+fix: ## Fix Python source code formatting with ruff
+	poetry run ruff format .
+	poetry run ruff check --fix
 
-.PHONY: flake8
-flake8: ## Lints all Python files with flake8
-# Not requiring dom0 since linting requires extra packages,
-# available only in the developer environment, i.e. Work VM.
-	flake8
-
-mypy: ## Type checks Python files
-# Not requiring dom0 since linting requires extra packages,
-# available only in the developer environment, i.e. Work VM.
-	mypy
+.PHONY: mypy
+mypy:  ## Type check Python files
+	poetry run mypy .
 
 .PHONY: rpmlint
 rpmlint: ## Runs rpmlint on the spec file
@@ -184,25 +206,6 @@ rpmlint: ## Runs rpmlint on the spec file
 .PHONY: shellcheck
 shellcheck: ## Runs shellcheck on all shell scripts
 	./scripts/shellcheck.sh
-
-prep-dom0: prep-dev # Copies dom0 config files
-	sudo qubesctl --show-output --targets dom0 state.highstate
-
-destroy-all: ## Destroys all VMs managed by Workstation salt config
-	./scripts/destroy-vm --all
-
-.PHONY: update-pip-requirements
-update-pip-requirements: ## Updates all Python requirements files via pip-compile.
-	pip-compile --allow-unsafe --generate-hashes --output-file=requirements/dev-requirements.txt requirements/dev-requirements.in
-
-.PHONY: venv
-venv: ## Provision a Python 3 virtualenv for development (ensure to also install OS package for PyQt5)
-	$(PYTHON3) -m venv .venv
-	.venv/bin/pip install --upgrade pip wheel
-	.venv/bin/pip install --require-hashes -r "requirements/dev-requirements.txt"
-	@echo "#################"
-	@echo "Virtualenv is complete."
-	@echo "Run: source .venv/bin/activate"
 
 # Explanation of the below shell command should it ever break.
 # 1. Set the field separator to ": ##" to parse lines for make targets.

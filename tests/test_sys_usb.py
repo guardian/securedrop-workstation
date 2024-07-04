@@ -6,7 +6,8 @@ from base import SD_VM_Local_Test
 class SD_SysUSB_Tests(SD_VM_Local_Test):
     def setUp(self):
         self.vm_name = "sys-usb"
-        super(SD_SysUSB_Tests, self).setUp()
+        super().setUp()
+        self.lsm = "selinux"
 
     def test_files_are_properly_copied(self):
         self.assertTrue(self._fileExists("/etc/udev/rules.d/99-sd-devices.rules"))
@@ -14,5 +15,4 @@ class SD_SysUSB_Tests(SD_VM_Local_Test):
 
 
 def load_tests(loader, tests, pattern):
-    suite = unittest.TestLoader().loadTestsFromTestCase(SD_SysUSB_Tests)
-    return suite
+    return unittest.TestLoader().loadTestsFromTestCase(SD_SysUSB_Tests)
