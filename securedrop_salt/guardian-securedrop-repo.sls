@@ -9,7 +9,7 @@ install-apt-transport:
 /etc/apt/s3auth.conf:
   file.managed:
     - name: /etc/apt/s3auth.conf
-    - source: "salt://s3auth.conf.j2"
+    - source: "salt://securedrop_salt/s3auth.conf.j2"
     - template: jinja
     - context:
         access_key_id: {{ d.guardian.aws.access_key_id }}
@@ -20,7 +20,7 @@ install-apt-transport:
 
 add guardian securedrop repo:
   pkgrepo.managed:
-    - name: "deb s3://{{ d.guardian.apt_repo_bucket }}/ bullseye main"
-    - key_url: "salt://sd/sd-workstation/{{ d.guardian.signing_key_filename }}"
+    - name: "deb s3://{{ d.guardian.apt_repo_bucket }}/ bookworm main"
+    - key_url: "salt://securedrop_salt/{{ d.guardian.signing_key_filename }}"
     - humanname: Guardian securedrop PPA
 
