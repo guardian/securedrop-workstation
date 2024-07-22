@@ -1,4 +1,4 @@
-{% import_json "sd/config.json" as d %}
+{% import_json "securedrop_salt/config.json" as d %}
 
 install-apt-transport:
   pkg.installed:
