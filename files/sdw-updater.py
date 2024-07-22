@@ -4,7 +4,6 @@ import sys
 
 from PyQt5.QtWidgets import QApplication
 
-
 from sdw_updater import Updater
 from sdw_updater.Updater import should_launch_updater
 from sdw_updater.UpdaterApp import UpdaterApp, launch_securedrop_client
