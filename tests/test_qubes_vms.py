@@ -1,7 +1,7 @@
 import unittest
 
+from base import CURRENT_FEDORA_DVM, CURRENT_FEDORA_TEMPLATE, CURRENT_WHONIX_VERSION
 from qubesadmin import Qubes
-from base import CURRENT_FEDORA_TEMPLATE, CURRENT_WHONIX_VERSION
 
 
 class SD_Qubes_VM_Tests(unittest.TestCase):
@@ -30,14 +30,14 @@ class SD_Qubes_VM_Tests(unittest.TestCase):
             wanted_templates = [CURRENT_FEDORA_TEMPLATE]
             if sys_vm in sys_vms_maybe_disp:
                 if sys_vm in sys_vms_custom_disp:
-                    wanted_templates.append(f"sd-{CURRENT_FEDORA_TEMPLATE}-dvm")
+                    wanted_templates.append(f"sd-{CURRENT_FEDORA_DVM}")
                 else:
-                    wanted_templates.append(CURRENT_FEDORA_TEMPLATE + "-dvm")
+                    wanted_templates.append(CURRENT_FEDORA_DVM)
 
             self.assertTrue(
                 vm.template.name in wanted_templates,
-                "Unexpected template for {}\n".format(sys_vm)
-                + "Current: {}\n".format(vm.template.name)
+                f"Unexpected template for {sys_vm}\n"
+                + f"Current: {vm.template.name}\n"
                 + "Expected: {}".format(", ".join(wanted_templates)),
             )
 
@@ -54,5 +54,4 @@ class SD_Qubes_VM_Tests(unittest.TestCase):
 
 
 def load_tests(loader, tests, pattern):
-    suite = unittest.TestLoader().loadTestsFromTestCase(SD_Qubes_VM_Tests)
-    return suite
+    return unittest.TestLoader().loadTestsFromTestCase(SD_Qubes_VM_Tests)

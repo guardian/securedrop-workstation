@@ -1,5 +1,5 @@
 Name:		securedrop-workstation-dom0-config
-Version:	0.10.0
+Version:	1.0.0
 Release:	1%{?dist}
 Summary:	SecureDrop Workstation
 
@@ -10,15 +10,19 @@ Summary:	SecureDrop Workstation
 %define source_date_epoch_from_changelog 1
 %define use_source_date_epoch_as_buildtime 1
 %define clamp_mtime_to_source_date_epoch 1
-#   * By default, the changelog for the last two years of the current time
-#     (_not_ SOURCE_DATE_EPOCH) is included, everything else is discarded.
-#     For reproducibility we'll keep everything
+#   * By default, changelog entries for the last two years of the current time
+#     (_not_ SOURCE_DATE_EPOCH) are included, everything else is discarded.
+#     For easy reproducibility we'll keep everything
 %define _changelog_trimtime 0
 %define _changelog_trimage 0
-#   * _buildhost varies based on environment, we build via Docker but ensure
-#     this is the same regardless
+#   * _buildhost varies based on environment, we build with containers but
+#     ensure this is the same regardless
 %global _buildhost %{name}
-#   * compiling Python bytecode is not reproducible at the time of writing
+#   * optflags is for multi-arch support: otherwise rpmbuild sets 'OPTFLAGS: -O2 -g -march=i386 -mtune=i686'
+%global optflags -O2 -g
+# To ensure forward-compatibility of RPMs regardless of updates to the system
+# Python, we disable the creation of bytecode at build time via the build
+# root policy.
 %undefine py_auto_byte_compile
 
 License:	AGPLv3
@@ -31,6 +35,7 @@ BuildRequires:	python3-devel
 BuildRequires:	python3-pip
 BuildRequires:	python3-setuptools
 BuildRequires:	python3-wheel
+BuildRequires:	systemd-rpm-macros
 
 # This package installs all standard VMs in Qubes
 Requires:		qubes-mgmt-salt-dom0-virtual-machines
@@ -53,83 +58,124 @@ configuration over time.
 
 %install
 %{python3} -m pip install --no-compile --no-index --no-build-isolation --root %{buildroot} .
-install -m 755 -d %{buildroot}/opt/securedrop/launcher/sdw_updater_gui
-install -m 755 -d %{buildroot}/opt/securedrop/launcher/sdw_notify
-install -m 755 -d %{buildroot}/opt/securedrop/launcher/sdw_util
-install -m 755 -d %{buildroot}/srv/salt/sd/sd-app
-install -m 755 -d %{buildroot}/srv/salt/sd/sd-proxy
-install -m 755 -d %{buildroot}/srv/salt/sd/sd-journalist
-install -m 755 -d %{buildroot}/srv/salt/sd/sd-whonix
-install -m 755 -d %{buildroot}/srv/salt/sd/sd-workstation
-install -m 755 -d %{buildroot}/srv/salt/sd/sys-firewall
-install -m 755 -d %{buildroot}/srv/salt/sd/usb-autoattach
+# direct_url.json is is not reproducible and not strictly needed
+rm %{buildroot}/%{python3_sitelib}/*%{version}.dist-info/direct_url.json
+sed -i "/\.dist-info\/direct_url\.json,/d" %{buildroot}/%{python3_sitelib}/*%{version}.dist-info/RECORD
+
+install -m 755 -d %{buildroot}/srv/salt/
+cp -a securedrop_salt %{buildroot}/srv/salt/
+
 install -m 755 -d %{buildroot}/%{_datadir}/%{name}/scripts
 install -m 755 -d %{buildroot}/%{_bindir}
-install -m 644 dom0/*.sls %{buildroot}/srv/salt/
-install -m 644 dom0/*.top %{buildroot}/srv/salt/
-install -m 644 dom0/*.j2 %{buildroot}/srv/salt/
-install -m 644 dom0/*.yml %{buildroot}/srv/salt/
-install -m 644 dom0/*.conf %{buildroot}/srv/salt/
-install -m 755 dom0/remove-tags %{buildroot}/srv/salt/
-install -m 644 dom0/securedrop-login %{buildroot}/srv/salt/
-install -m 644 dom0/securedrop-launcher.desktop %{buildroot}/srv/salt/
-install -m 755 dom0/securedrop-check-migration %{buildroot}/srv/salt/
-install -m 755 dom0/securedrop-handle-upgrade %{buildroot}/srv/salt/
-install -m 755 dom0/update-xfce-settings %{buildroot}/srv/salt/
-install -m 644 sd-app/* %{buildroot}/srv/salt/sd/sd-app/
-install -m 644 sd-proxy/* %{buildroot}/srv/salt/sd/sd-proxy/
-install -m 644 sd-whonix/* %{buildroot}/srv/salt/sd/sd-whonix/
-install -m 644 sd-workstation/* %{buildroot}/srv/salt/sd/sd-workstation/
-install -m 644 sys-firewall/* %{buildroot}/srv/salt/sd/sys-firewall/
-install -m 755 usb-autoattach/sd-attach-export-device %{buildroot}/srv/salt/sd/usb-autoattach/
-install -m 644 usb-autoattach/99-sd-devices.rules %{buildroot}/srv/salt/sd/usb-autoattach/
+install -m 755 -d %{buildroot}/opt/securedrop
+install -m 755 -d %{buildroot}/usr/bin/securedrop
+install -m 755 files/update-xfce-settings %{buildroot}/usr/bin/securedrop/
 install -m 755 files/clean-salt %{buildroot}/%{_datadir}/%{name}/scripts/
-install -m 755 files/destroy-vm %{buildroot}/%{_datadir}/%{name}/scripts/
+install -m 755 files/destroy-vm.py %{buildroot}/%{_datadir}/%{name}/scripts/destroy-vm
 install -m 755 files/provision-all %{buildroot}/%{_datadir}/%{name}/scripts/
 install -m 755 files/validate_config.py %{buildroot}/%{_datadir}/%{name}/scripts/
-install -m 644 launcher/*.py %{buildroot}/opt/securedrop/launcher/
-install -m 644 launcher/sdw_updater_gui/*.py %{buildroot}/opt/securedrop/launcher/sdw_updater_gui/
-install -m 644 launcher/sdw_notify/*.py %{buildroot}/opt/securedrop/launcher/sdw_notify/
-install -m 644 launcher/sdw_util/*.py %{buildroot}/opt/securedrop/launcher/sdw_util/
 install -m 755 files/sdw-admin.py %{buildroot}/%{_bindir}/sdw-admin
 install -m 644 files/config.json.example %{buildroot}/%{_datadir}/%{name}/
 
+install -m 755 -d %{buildroot}/%{_bindir}
+install -m 755 -d %{buildroot}/%{_datadir}/applications/
+install -m 755 -d %{buildroot}/%{_datadir}/icons/hicolor/128x128/apps/
+install -m 755 -d %{buildroot}/%{_datadir}/icons/hicolor/scalable/apps/
+install -m 755 -d %{buildroot}/%{_sharedstatedir}/%{name}/
+install -m 755 -d %{buildroot}/%{_userunitdir}/
+install -m 755 -d %{buildroot}/%{_unitdir}
+install -m 644 files/press.freedom.SecureDropUpdater.desktop %{buildroot}/%{_datadir}/applications/
+install -m 644 files/press.freedom.SecureDropUpdater.desktop %{buildroot}/srv/salt/securedrop_salt/press.freedom.SecureDropUpdater.desktop
+install -m 644 files/securedrop-128x128.png %{buildroot}/%{_datadir}/icons/hicolor/128x128/apps/securedrop.png
+install -m 644 files/securedrop-scalable.svg %{buildroot}/%{_datadir}/icons/hicolor/scalable/apps/securedrop.svg
+install -m 755 files/sdw-updater.py %{buildroot}/%{_bindir}/sdw-updater
+install -m 755 files/sdw-notify.py %{buildroot}/%{_bindir}/sdw-notify
+install -m 755 files/sdw-login.py %{buildroot}/%{_bindir}/sdw-login
+install -m 644 files/sdw-notify.service %{buildroot}/%{_userunitdir}/
+install -m 644 files/sdw-notify.timer %{buildroot}/%{_userunitdir}/
+install -m 644 files/securedrop-logind-override-disable.service %{buildroot}/%{_unitdir}/
+
+install -m 755 -d %{buildroot}/etc/qubes/policy.d/
+install -m 644 files/31-securedrop-workstation.policy %{buildroot}/etc/qubes/policy.d/
+install -m 644 files/32-securedrop-workstation.policy %{buildroot}/etc/qubes/policy.d/
+
+install -m 755 -d %{buildroot}/usr/share/securedrop/icons
+install -m 644 files/securedrop-128x128.png %{buildroot}/usr/share/securedrop/icons/sd-logo.png
+
+install -m 755 -d %{buildroot}/etc/systemd/logind.conf.d/
+install -m 644 files/10-securedrop-logind_override.conf %{buildroot}/etc/systemd/logind.conf.d/
+install -m 644 files/securedrop-user-xfce-settings.service %{buildroot}/%{_userunitdir}/
+install -m 644 files/securedrop-user-xfce-icon-size.service %{buildroot}/%{_userunitdir}/
 
 %files
-%attr(755, root, root) /opt/securedrop/launcher/sdw-launcher.py
-%attr(755, root, root) /opt/securedrop/launcher/sdw-notify.py
 %attr(755, root, root) %{_datadir}/%{name}/scripts/clean-salt
 %attr(755, root, root) %{_datadir}/%{name}/scripts/destroy-vm
 %attr(755, root, root) %{_datadir}/%{name}/scripts/provision-all
 %attr(755, root, root) %{_datadir}/%{name}/scripts/validate_config.py
 %attr(755, root, root) %{_bindir}/sdw-admin
+%{_datadir}/%{name}/config.json.example
+/srv/salt/securedrop_salt/*
+%attr(755, root, root) %{_bindir}/sdw-login
+%attr(755, root, root) %{_bindir}/sdw-notify
+%attr(755, root, root) %{_bindir}/sdw-updater
+%attr(644, root, root) %{_datadir}/applications/press.freedom.SecureDropUpdater.desktop
+%{python3_sitelib}/sdw_notify/*.py
+%{python3_sitelib}/sdw_updater/*.py
+%{python3_sitelib}/sdw_util/*.py
 # The name of the dist-info dir uses _ instead of -, so we use wildcards
 %{python3_sitelib}/*%{version}.dist-info/*
-%{_datadir}/%{name}/config.json.example
-/opt/securedrop/launcher/**/*.py
-/srv/salt/sd*
-/srv/salt/guardian-securedrop-repo.sls
-/srv/salt/s3auth.conf.j2
-/srv/salt/dom0-xfce-desktop-file.j2
-/srv/salt/remove-tags
-/srv/salt/securedrop-*
-/srv/salt/update-xfce-settings
-/srv/salt/fpf*
+%{_datadir}/icons/hicolor/128x128/apps/securedrop.png
+%{_datadir}/icons/hicolor/scalable/apps/securedrop.svg
+%{_userunitdir}/sdw-notify.service
+%{_userunitdir}/sdw-notify.timer
+%{_userunitdir}/securedrop-user-xfce-settings.service
+%{_userunitdir}/securedrop-user-xfce-icon-size.service
+%{_unitdir}/securedrop-logind-override-disable.service
+
+%attr(664, root, root) /etc/qubes/policy.d/31-securedrop-workstation.policy
+%attr(664, root, root) /etc/qubes/policy.d/32-securedrop-workstation.policy
+
+# Override systemd-logind settings on staging and prod systems
+/etc/systemd/logind.conf.d/10-securedrop-logind_override.conf
+
+#TODO: this is the same 128x128 icon "securedrop.png" in the datadir
+/usr/share/securedrop/icons/sd-logo.png
+
+%attr(755, root, root) /usr/bin/securedrop/update-xfce-settings
+
 %doc README.md
 %license LICENSE
 
-
 %post
-find /srv/salt -maxdepth 1 -type f -iname '*.top' \
-    | xargs -n1 basename \
-    | sed -e 's/\.top$$//g' \
-    | xargs qubesctl top.enable > /dev/null
+qubesctl top.enable securedrop_salt.sd-workstation > /dev/null ||:
 
 # Force full run of all Salt states - uncomment in release branch
 # mkdir -p /tmp/sdw-migrations
 # touch /tmp/sdw-migrations/whonix-17-update
 
+# Enables service that conditionally removes our systemd-logind customizations
+# on dev machines only.
+# It's clumsy, but overrides to systemd services can't be conditionally applied.
+# Changes take place after systemd restart.
+systemctl enable securedrop-logind-override-disable.service
+
+# Customize xfce power settings and icon size. Enabled for all users.
+# Power settings changes conditionally disabled in dev environments.
+systemctl --global enable securedrop-user-xfce-icon-size.service ||:
+systemctl --global enable securedrop-user-xfce-settings.service ||:
+
+%preun
+# If we're uninstalling (vs upgrading)
+if [ $1 -eq 0 ]; then
+    systemctl disable --now securedrop-logind-override-disable.service
+    systemctl --global disable securedrop-user-xfce-icon-size.service ||:
+    systemctl --global disable securedrop-user-xfce-settings.service ||:
+fi
+
 %changelog
+* Thu Jul 11 2024 SecureDrop Team <securedrop@freedom.press> - 1.0.0
+- See changelog.md
+
 * Wed Feb 7 2024 SecureDrop Team <securedrop@freedom.press> - 0.10.0
 - Use Whonix-17 template for sd-whonix
 

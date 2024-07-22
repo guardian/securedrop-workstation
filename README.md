@@ -12,6 +12,7 @@ This project aims to improve journalists' experience using SecureDrop, by moving
 We are currently piloting this project with a small number of news organizations; see [our blog post](https://securedrop.org/news/piloting-securedrop-workstation-qubes-os/) for additional information.
 
 1. [Detailed Rationale](#detailed-rationale)
+1. [Project Status](#project-status)
 1. [Architecture](#architecture)
 1. [What's In This Repo?](#whats-in-this-repo)
 1. [Installation](#installation)
@@ -33,13 +34,17 @@ The Qubes OS approach addresses this at multiple levels:
 
 - By disabling Internet access and [mitigating against other exfiltration risks](https://en.wikipedia.org/wiki/Air_gap_malware) on a per-VM basis, we can combine multiple functions into a single device. Checking SecureDrop submissions is as simple as booting up your workstation, downloading recent submissions, and inspecting them. This has the potential to greatly reduce time and effort spent by SecureDrop journalists, administators and trainers, and to increase day-to-day SecureDrop use.
 
-- Qubes OS' security model lets us add specific software features (such as redaction of documents) with careful consideration in each case what level of system or network access an application requires. This lets us gradually extend the functionality we can offer to journalists beyond the mere download of submissions.
+- Qubes OS' security model lets us add specific software features (such as document redaction, or sanitization via [Dangerzone](https://dangerzone.rocks)) with careful consideration in each case what level of system or network access an application requires. This lets us gradually extend the functionality we can offer to journalists beyond the mere download of submissions.
 
 - We can potentially add VMs that enable end-to-end encrypted communication with other SecureDrop journalists, intermediated by the SecureDrop server. This enables us to add software features that, for example, let journalists collaborate in categorizing submissions, assigning work, versioning changes to documents, and so on.
 
 However, the Qubes OS approach is not without downsides. It stands and falls with the security of Qubes OS itself, which in turn may be impacted by Spectre/Meltdown type CPU level vulnerabilities, hypervisor vulnerabilities, and so on. These risks must be compared against the operational security risks of the current architecture, including the work that journalists do after downloading a submission. The Qubes OS website provides a useful [comparison of its security model with that of using a separate machine](https://www.qubes-os.org/faq/#how-does-qubes-os-compare-to-using-a-separate-physical-machine).
 
-While we are strongly committed to piloting the use of Qubes OS for SecureDrop, no final decision has been made to move to this new architecture. This decision will require a full audit of this new approach, consideration of alternatives, and extensive validation with SecureDrop's current user community.
+## Project status
+
+We intend to bring the pilot program to a close in 2024, and move forward with general availability of SecureDrop Workstation following final updates based on the pilot participants' feedback and experience. The general availability version will be compatible with Qubes 4.2. Work is ongoing on 4.2 compatibility, and the mainline of this repo will be in flux and not suitable for production deployment until the work is completed and audited.
+
+For now, if you want to preview SecureDrop Workstation's functionality we recommend following the installation instructions at [https://workstation.securedrop.org](https://workstation.securedrop.org), which will guide you through installing the latest stable version of SecureDrop Workstation on Qubes 4.1.
 
 ## Architecture
 
@@ -68,20 +73,41 @@ See below for a closer examination of this process, and see `docs/images` for sc
 
 ## What's In This Repo?
 
-This repository can be broken into three parts: 1) a set of salt states and `top` files which configure the various VMs, 2) scripts and system configuration files which set up the document handling process, and 3) the pre-flight updater used to update all VMs relevant to the SecureDrop Workstation.
+This repository contains the material needed to provision the base Qubes system with the VMs and files required to support
+SecureDrop Workstation.
 
-Qubes uses SaltStack internally for VM provisionining and configuration management (see https://www.qubes-os.org/doc/salt/), so it's natural for us to use it as well. The `dom0` directory contains salt `.top` and `.sls` files used to provision the VMs noted above.
+Provisioning is accomplished by installing an .rpm in dom0 on a fresh installation of QubesOS, configuring instance-specific
+secrets and credentials, then running an orchestration command (`sdw-admin --apply`) which configures the machine
+in the desired state.
+
+This repository contains the following core components:
+
+- `securedrop_salt`, which contains all files required during the provisioning (orchestration) stage. Qubes uses SaltStack internally for VM provisionining and configuration management (see https://www.qubes-os.org/doc/salt/). The contents of `securedrop_salt` are provisioned to end users via the securedrop-workstatoin-dom0-config RPM.
+- `files`, which contain scripts and configuration files placed in dom0 before provisioning, such as systemd units, [RPC policy files](https://www.qubes-os.org/news/2020/06/22/new-qrexec-policy-system/#policy-files), and Python scripts. The contents of `files` are provisioned to end users via the securedrop-workstatoin-dom0-config RPM.
+- the "pre-flight updater" components (`launcher`, `sdw_updater`, `sdw_notify`, `sdw_util`), which comprise a wrapper around the Qubes Updater, and which serve to enforce a fully-patched system. The contents of these directories are provisioned to end users via the securedrop-workstation-dom0-config RPM. The updater updates all TemplateVMs relevant to the SecureDrop Workstation prior to use, and the the `sdw-notify.py` script reminds the user to update the system if they have not done so recently.
+
+This repo also contains the following developer-facing components:
+- `rpm-build`, containing the components required for building the `securedrop-workstation-dom0-config` RPM that is ultimately published to our [yum repository](https://yum.securedrop.org).
+- `scripts`, which are developer-facing linting and build-related scripts.
 - `Makefile` is used with the `make` command on `dom0` to build the Qubes/SecureDrop installation, and also contains some development and testing features.
-- The [SecureDrop Client](https://github.com/freedomofpress/securedrop-client) is installed in `sd-app` and will be used to access the SecureDrop server *Journalist Interface* via the SecureDrop proxy.
-- The [SecureDrop Proxy](https://github.com/freedomofpress/securedrop-proxy) is installed in `sd-proxy` to communicate to the SecureDrop server *Journalist Interface* via `sd-whonix`.
-- Within `sd-app`, the *SecureDrop Client* will open all submissions in the `sd-viewer` disposable VM.
-- `files/config.json.example` is an example config file for the provisioning process. Before use, you should copy it to `config.json` (in the repository's root directory), and adjust to reflect your environment.
-- `sd-journalist.sec.example` is an example GPG private key for use in decrypting submissions. It must match the public key set on a SecureDrop server used for testing. Before use, you should copy it to `sd-journalist.sec`, or store the submission key used with your SecureDrop server as `sd-journalist.sec`.
-- `launcher/` contains the pre-flight updater component (`sdw-launcher`), which updates all TemplateVMs relevant to the SecureDrop Workstation prior to use, as well as the `sdw-notify` script, which reminds the user to update the system if they have not done so recently.
+
+SecureDrop Workstation has a companion repository, [SecureDrop Client](https://github.com/freedomofpress/securedrop-client/),
+that contains component code for all of the packages we ship in individual VMs once they have been provisioned:
+- The [SecureDrop Client](https://github.com/freedomofpress/securedrop-client/tree/main/client#readme) is installed in `sd-app` and will be used to access the SecureDrop server *Journalist Interface* via the SecureDrop proxy.
+- The [SecureDrop Proxy](https://github.com/freedomofpress/securedrop-client/tree/main/proxy#readme) is installed in `sd-proxy` to communicate to the SecureDrop server *Journalist Interface* via `sd-whonix`.
+- [SecureDrop Export](https://github.com/freedomofpress/securedrop-client/tree/main/export#readme) is installed in `sd-devices` and is used to manage printing and exporting files.
+- The *SecureDrop Client* opens all submissions in the networkless, disposable `sd-viewer` VM
+- A logging VM, `sd-log`, is provisioned to capture logs locally from various parts of the system
+- A [Whonix](https://www.whonix.org/wiki/Homepage) VM, `sd-whonix`, is provisioned with instance-specific information required to access the authenticated onion service used by journalists.
+
+### Additional Notes:
+
+- `files/config.json.example` is an example config file for the provisioning process. Before use, you should rename a copy `config.json` (in the repository's root directory), then edit `config.json` to reflect your environment.
+- `sd-journalist.sec.example` is an example private key for use in decrypting submissions in test/development environments. **This keypair must not be used in a production environment.** Use your own armored [Submission Private Key](https://workstation.securedrop.org/en/stable/admin/install.html#copy-the-submission-key) file, named as `sd-journalist.sec`, to provision SecureDrop Workstation.
 
 ## Installation
 
-Installing this project is involved. It requires an up-to-date Qubes 4.1 installation running on a machine with at least 16GB of RAM (32 GB recommended).
+Installing this project is involved. It requires an up-to-date Qubes 4.2 installation running on a machine with at least 16GB of RAM (32 GB recommended).
 
 **The project is currently in a closed beta, and we do not recommend installing it for production purposes independently. See our [blog post](https://securedrop.org/news/piloting-securedrop-workstation-qubes-os/) for more information. If you are participating in our beta program, please consult our *[end user documentation](https://workstation.securedrop.org)* for detailed setup instructions, and do not hesitate to reach out for assistance.**
 

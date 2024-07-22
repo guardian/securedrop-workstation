@@ -1,4 +1,3 @@
-import json
 import unittest
 
 from base import SD_VM_Local_Test
@@ -7,10 +6,13 @@ from base import SD_VM_Local_Test
 class SD_App_Tests(SD_VM_Local_Test):
     def setUp(self):
         self.vm_name = "sd-app"
-        super(SD_App_Tests, self).setUp()
-
-    def test_gpg_domain_configured(self):
-        self.qubes_gpg_domain_configured(self.vm_name)
+        super().setUp()
+        self.expected_config_keys = {
+            "QUBES_GPG_DOMAIN",
+            "SD_SUBMISSION_KEY_FPR",
+            "SD_MIME_HANDLING",
+        }
+        self.enforced_apparmor_profiles = {"/usr/bin/securedrop-client"}
 
     def test_open_in_dvm_desktop(self):
         contents = self._get_file_contents("/usr/share/applications/open-in-dvm.desktop")
@@ -19,7 +21,7 @@ class SD_App_Tests(SD_VM_Local_Test):
             "Exec=/usr/bin/qvm-open-in-vm --view-only @dispvm:sd-viewer %f",
         ]
         for line in expected_contents:
-            self.assertTrue(line in contents)
+            self.assertIn(line, contents)
 
     def test_mimeapps(self):
         cmd = "perl -F= -lane 'print $F[1]' /usr/share/applications/mimeapps.list | sort | uniq -c"
@@ -32,7 +34,7 @@ class SD_App_Tests(SD_VM_Local_Test):
         results = self._run(cmd)
         for line in results.split("\n"):
             if line != "[Default Applications]" and not line.startswith("#"):
-                actual_app = self._run("xdg-mime query default {}".format(line))
+                actual_app = self._run(f"xdg-mime query default {line}")
                 self.assertEqual(actual_app, "open-in-dvm.desktop")
 
     def test_mailcap_hardened(self):
@@ -46,22 +48,13 @@ class SD_App_Tests(SD_VM_Local_Test):
         self.assertTrue(self._package_is_installed("python3-pyqt5.qtsvg"))
 
     def test_sd_client_config(self):
-        with open("config.json") as c:
-            config = json.load(c)
-            submission_fpr = config["submission_key_fpr"]
-
-        line = '{{"journalist_key_fingerprint": "{}"}}'.format(submission_fpr)
-        self.assertFileHasLine("/home/user/.securedrop_client/config.json", line)
-
-    def test_sd_client_apparmor(self):
-        cmd = "sudo aa-status --json"
-        results = json.loads(self._run(cmd))
-        self.assertTrue(results["profiles"]["/usr/bin/securedrop-client"] == "enforce")
+        self.assertEqual(
+            self.dom0_config["submission_key_fpr"], self._vm_config_read("SD_SUBMISSION_KEY_FPR")
+        )
 
     def test_logging_configured(self):
         self.logging_configured()
 
 
 def load_tests(loader, tests, pattern):
-    suite = unittest.TestLoader().loadTestsFromTestCase(SD_App_Tests)
-    return suite
+    return unittest.TestLoader().loadTestsFromTestCase(SD_App_Tests)

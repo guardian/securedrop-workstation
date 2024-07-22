@@ -1,21 +1,26 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """
 Admin wrapper script for applying salt states for staging and prod scenarios. The rpm
 packages only puts the files in place `/srv/salt` but does not apply the state, nor
 does it handle the config.
 """
-import sys
+
 import argparse
-import subprocess
 import os
+import subprocess
+import sys
+from typing import List
+
+import qubesadmin
 
 SCRIPTS_PATH = "/usr/share/securedrop-workstation-dom0-config/"
-SALT_PATH = "/srv/salt/sd/"
+SALT_PATH = "/srv/salt/securedrop_salt/"
+BASE_TEMPLATE = "debian-12-minimal"
 
 sys.path.insert(1, os.path.join(SCRIPTS_PATH, "scripts/"))
 from validate_config import SDWConfigValidator, ValidationError  # noqa: E402
 
-DEBIAN_VERSION = "bullseye"
+DEBIAN_VERSION = "bookworm"
 
 
 def parse_args():
@@ -42,27 +47,29 @@ def parse_args():
         help="Completely Uninstalls the SecureDrop Workstation",
     )
     parser.add_argument(
-        "--keep-template-rpm",
-        default=False,
-        required=False,
-        action="store_true",
-        help="During uninstall action, leave TemplateVM RPM package installed in dom0",
-    )
-    parser.add_argument(
         "--force",
         default=False,
         required=False,
         action="store_true",
         help="During uninstall action, don't prompt for confirmation, proceed immediately",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    return args
+
+def install_pvh_support():
+    """
+    Installs grub2-xen-pvh in dom0 - required for PVH with AppVM local kernels
+    TODO: install this via package requirements instead if possible
+    """
+    try:
+        subprocess.check_call(["sudo", "qubes-dom0-update", "-y", "-q", "grub2-xen-pvh"])
+    except subprocess.CalledProcessError:
+        raise SDWAdminException("Error installing grub2-xen-pvh: local PVH not available.")
 
 
 def copy_config():
     """
-    Copies config.json and sd-journalist.sec to /srv/salt/sd
+    Copies config.json and sd-journalist.sec to /srv/salt/securedrop_salt
     """
     try:
         subprocess.check_call(["sudo", "cp", os.path.join(SCRIPTS_PATH, "config.json"), SALT_PATH])
@@ -95,6 +102,20 @@ def validate_config(path):
         raise SDWAdminException("Error while validating configuration")
 
 
+def get_appvms_for_template(vm_name: str) -> List[str]:
+    """
+    Return a list of AppVMs that use the specified VM as a template
+    """
+    app = qubesadmin.Qubes()
+    try:
+        template_vm = app.domains[vm_name]
+    except KeyError:
+        # No VM implies no appvms, return an empty list
+        # (The template may just not be installed yet)
+        return []
+    return [x.name for x in list(template_vm.appvms)]
+
+
 def refresh_salt():
     """
     Cleans the Salt cache and synchronizes Salt to ensure we are applying states
@@ -111,14 +132,15 @@ def refresh_salt():
         raise SDWAdminException("Error while synchronizing Salt")
 
 
-def perform_uninstall(keep_template_rpm=False):
-
+def perform_uninstall():
     try:
-        subprocess.check_call(["sudo", "qubesctl", "state.sls", "sd-clean-default-dispvm"])
+        subprocess.check_call(
+            ["sudo", "qubesctl", "state.sls", "securedrop_salt.sd-clean-default-dispvm"]
+        )
         print("Destroying all VMs")
         subprocess.check_call([os.path.join(SCRIPTS_PATH, "scripts/destroy-vm"), "--all"])
         print("Reverting dom0 configuration")
-        subprocess.check_call(["sudo", "qubesctl", "state.sls", "sd-clean-all"])
+        subprocess.check_call(["sudo", "qubesctl", "state.sls", "securedrop_salt.sd-clean-all"])
         subprocess.check_call([os.path.join(SCRIPTS_PATH, "scripts/clean-salt")])
         print("Uninstalling dom0 config package")
         subprocess.check_call(
@@ -139,11 +161,31 @@ def main():
         sys.exit(0)
     args = parse_args()
     if args.validate:
-        print("Validating...")
+        print("Validating...", end="")
         validate_config(SCRIPTS_PATH)
+        print("OK")
     elif args.apply:
+        print(
+            "SecureDrop Workstation should be installed on a fresh Qubes OS install.\n"
+            "The installation process will overwrite any user modifications to the\n"
+            f"{BASE_TEMPLATE} TemplateVM, and will disable old-format qubes-rpc\n"
+            "policy directives.\n"
+        )
+        affected_appvms = get_appvms_for_template(BASE_TEMPLATE)
+        if len(affected_appvms) > 0:
+            print(
+                f"{BASE_TEMPLATE} is already in use by the following AppVMS:\n"
+                f"{affected_appvms}\n"
+                "Applications and configurations in use by these AppVMs will be\n"
+                f"removed from {BASE_TEMPLATE}."
+            )
+            response = input("Are you sure you want to proceed (y/N)? ")
+            if response.lower() != "y":
+                print("Exiting.")
+                sys.exit(0)
         print("Applying configuration...")
         validate_config(SCRIPTS_PATH)
+        install_pvh_support()
         copy_config()
         refresh_salt()
         provision_all()
@@ -159,7 +201,7 @@ def main():
                 print("Exiting.")
                 sys.exit(0)
         refresh_salt()
-        perform_uninstall(keep_template_rpm=args.keep_template_rpm)
+        perform_uninstall()
     else:
         sys.exit(0)
 

@@ -12,3 +12,4 @@ RUN dnf install -y \
     rpm diffoscope reprotest faketime  \
     python3-pip python3-wheel python3-devel rpm-sign
 RUN python3 --version
+RUN git config --global --add safe.directory /src

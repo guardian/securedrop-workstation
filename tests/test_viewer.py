@@ -1,13 +1,28 @@
 import os
 import unittest
 
-from base import SD_VM_Local_Test
+from base import SD_Unnamed_DVM_Local_Test
 
 
-class SD_Viewer_Tests(SD_VM_Local_Test):
+class SD_Viewer_Tests(SD_Unnamed_DVM_Local_Test):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass("sd-viewer")
+
     def setUp(self):
-        self.vm_name = "sd-viewer"
-        super(SD_Viewer_Tests, self).setUp()
+        super().setUp()
+        self.expected_config_keys = {"SD_MIME_HANDLING"}
+        # this is not a comprehensive list, just a few that users are likely to use
+        self.enforced_apparmor_profiles = {
+            "/usr/bin/evince",
+            "/usr/bin/evince-previewer",
+            "/usr/bin/evince-previewer//sanitized_helper",
+            "/usr/bin/evince-thumbnailer",
+            "/usr/bin/totem",
+            "/usr/bin/totem-audio-preview",
+            "/usr/bin/totem-video-thumbnailer",
+            "/usr/bin/totem//sanitized_helper",
+        }
 
     def test_sd_viewer_metapackage_installed(self):
         self.assertTrue(self._package_is_installed("securedrop-workstation-viewer"))
@@ -35,22 +50,26 @@ class SD_Viewer_Tests(SD_VM_Local_Test):
         filepath = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "vars", "sd-viewer.mimeapps"
         )
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             lines = f.readlines()
             for line in lines:
                 if line != "[Default Applications]\n" and not line.startswith("#"):
                     mime_type = line.split("=")[0]
                     expected_app = line.split("=")[1].rstrip()
-                    actual_app = self._run("xdg-mime query default {}".format(mime_type))
+                    actual_app = self._run(f"xdg-mime query default {mime_type}")
                     self.assertEqual(actual_app, expected_app)
+
+    def test_mimetypes_service(self):
+        self._service_is_active("securedrop-mime-handling")
 
     def test_mailcap_hardened(self):
         self.mailcap_hardened()
 
-    def test_gpg_domain_configured(self):
-        self.qubes_gpg_domain_configured(self.vm_name)
+    def test_mimetypes_symlink(self):
+        self.assertTrue(self._fileExists(".local/share/applications/mimeapps.list"))
+        symlink_location = self._get_symlink_location(".local/share/applications/mimeapps.list")
+        assert symlink_location == "/opt/sdw/mimeapps.list.sd-viewer"
 
 
 def load_tests(loader, tests, pattern):
-    suite = unittest.TestLoader().loadTestsFromTestCase(SD_Viewer_Tests)
-    return suite
+    return unittest.TestLoader().loadTestsFromTestCase(SD_Viewer_Tests)

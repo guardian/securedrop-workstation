@@ -1,7 +1,4 @@
 import unittest
-import json
-from jinja2 import Template
-
 
 from base import SD_VM_Local_Test
 
@@ -10,28 +7,24 @@ class SD_Whonix_Tests(SD_VM_Local_Test):
     def setUp(self):
         self.vm_name = "sd-whonix"
         self.whonix_apt_list = "/etc/apt/sources.list.d/derivative.list"
-        super(SD_Whonix_Tests, self).setUp()
+        super().setUp()
+        self.expected_config_keys = {"SD_HIDSERV_HOSTNAME", "SD_HIDSERV_KEY"}
 
-    def test_accept_sd_xfer_extracted_file(self):
-        with open("config.json") as c:
-            config = json.load(c)
-            if len(config["hidserv"]["hostname"]) == 22:
-                t = Template("HidServAuth {{ d.hidserv.hostname }}" " {{ d.hidserv.key }}")
-                line = t.render(d=config)
+    def test_sd_whonix_config_enabled(self):
+        assert self._qubes_service_enabled("securedrop-whonix-config")
 
-            else:
-                line = "ClientOnionAuthDir /var/lib/tor/keys"
-
-            self.assertFileHasLine("/usr/local/etc/torrc.d/50_user.conf", line)
+    def test_sd_whonix_config(self):
+        self.assertEqual(
+            self.dom0_config["hidserv"]["hostname"], self._vm_config_read("SD_HIDSERV_HOSTNAME")
+        )
+        self.assertEqual(self.dom0_config["hidserv"]["key"], self._vm_config_read("SD_HIDSERV_KEY"))
 
     def test_v3_auth_private_file(self):
-        with open("config.json") as c:
-            config = json.load(c)
-            hostname = config["hidserv"]["hostname"].split(".")[0]
-            keyvalue = config["hidserv"]["key"]
-            line = "{0}:descriptor:x25519:{1}".format(hostname, keyvalue)
+        hidserv_hostname = self._vm_config_read("SD_HIDSERV_HOSTNAME")
+        hidserv_key = self._vm_config_read("SD_HIDSERV_KEY")
+        line = f"{hidserv_hostname}:descriptor:x25519:{hidserv_key}"
 
-            self.assertFileHasLine("/var/lib/tor/keys/app-journalist.auth_private", line)
+        self.assertFileHasLine("/var/lib/tor/authdir/app-journalist.auth_private", line)
 
     def test_sd_whonix_repo_enabled(self):
         """
@@ -53,15 +46,12 @@ class SD_Whonix_Tests(SD_VM_Local_Test):
         torrc_contents = self._get_file_contents("/etc/tor/torrc")
         duplicate_includes = """%include /etc/torrc.d/
 %include /etc/torrc.d/95_whonix.conf"""
-        self.assertFalse(
-            duplicate_includes in torrc_contents,
+        self.assertNotIn(
+            duplicate_includes,
+            torrc_contents,
             "Whonix GW torrc contains duplicate %include lines",
         )
 
-    def test_gpg_domain_configured(self):
-        self.qubes_gpg_domain_configured(self.vm_name)
-
 
 def load_tests(loader, tests, pattern):
-    suite = unittest.TestLoader().loadTestsFromTestCase(SD_Whonix_Tests)
-    return suite
+    return unittest.TestLoader().loadTestsFromTestCase(SD_Whonix_Tests)
