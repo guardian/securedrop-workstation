@@ -21,3 +21,4 @@ install-securedrop-client-package:
       - securedrop-client
     - require:
       - sls: securedrop_salt.guardian-securedrop-repo
+      - sls: securedrop_salt.sd-logging-setup
