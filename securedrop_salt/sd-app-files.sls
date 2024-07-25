@@ -9,6 +9,8 @@
 #
 ##
 include:
+  - securedrop_salt.fpf-apt-repo
+  - securedrop_salt.sd-logging-setup
   - securedrop_salt.guardian-securedrop-repo
 
 # FPF repo is setup in "securedrop-workstation-$sdvars.distribution" template,
@@ -20,5 +22,5 @@ install-securedrop-client-package:
     - pkgs:
       - securedrop-client
     - require:
+      - sls: securedrop_salt.fpf-apt-repo
       - sls: securedrop_salt.guardian-securedrop-repo
-      - sls: securedrop_salt.sd-logging-setup
