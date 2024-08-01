@@ -1,4 +1,4 @@
-FROM fedora:40
+FROM fedora:38
 WORKDIR /usr/src/sdw
 
 #npm has some prompts on installation. let's suppres them
