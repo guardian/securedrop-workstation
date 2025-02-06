@@ -20,7 +20,8 @@ install-apt-transport:
 
 add guardian securedrop repo:
   pkgrepo.managed:
-    - name: "deb s3://{{ d.guardian.apt_repo_bucket }}/ bookworm main"
+    - name: "deb [signed-by=/etc/apt/keyrings/{{ d.guardian.signing_key_filename }} arch=amd64] s3://{{ d.guardian.apt_repo_bucket }}/ bookworm main"
     - key_url: "salt://securedrop_salt/{{ d.guardian.signing_key_filename }}"
+    - aptkey: false
     - humanname: Guardian securedrop PPA
 
